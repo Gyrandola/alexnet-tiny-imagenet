@@ -1,6 +1,5 @@
 # AlexNet on Tiny ImageNet
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Gyrandola/alexnet-tiny-imagenet/blob/main/alexnet_tiny_imagenet.ipynb)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
 [![ROCm 7.2](https://img.shields.io/badge/ROCm-7.2-red.svg)](https://rocm.docs.amd.com/)
 
