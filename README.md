@@ -1,10 +1,69 @@
-# AlexNet on Tiny ImageNet
+# AlexNet 2012 on Tiny ImageNet
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Gyrandola/alexnet-tiny-imagenet/blob/main/alexnet_tiny_imagenet.ipynb)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
 [![ROCm 7.2](https://img.shields.io/badge/ROCm-7.2-red.svg)](https://rocm.docs.amd.com/)
 
-A PyTorch implementation of AlexNet adapted for the Tiny ImageNet-200 benchmark, based on the original 2012 paper.
+An implementation and comparison of the original AlexNet against an adapted version on Tiny ImageNet.
+
+AlexNet was designed for 224x224 input. Applied unchanged to the 64x64 of Tiny ImageNet, the conv trunk
+collapses to a 1x1 feature map before the first FC layer, so `AdaptiveAvgPool2d((6,6))`
+broadcasts a single 256-vector 36x into the 9216-dim FC input. Those 36 copies are
+rank-redundant: the first `Linear(9216, 4096)` matrix has rank ≤ 256 at this resolution,
+wasting 37M of AlexNet's 60M parameters.
+
+The adaptation consists in reducing the architecture's downsampling so the trunk naturally produces the expected 6x6 feature map.
+
+## Model differences
+
+| | OriginalAlexNet | AlexNet (adapted) |
+|---|---|---|
+| conv1 stride | 4 | 2 |
+| pool1 stride | 2 | 1 |
+| conv trunk 64x64 | 64->15->7->7->3->3->3->1 | 64->29->27->27->13->13->13->6 |
+| conv MACs / image | ~15 M | ~144 M |
+| FC MACs / image | ~55 M | ~55 M (same head) |
+| total MACs / image |	~70 M|	~199 M |
+| params | ~60 M | ~60 M |
+
+## Dataset
+
+Tiny ImageNet (Stanford CS231n), native 64x64, 100,000 train / 10,000 val images,
+200 classes.
+
+## Training
+The same data-augmentation and training configuration is applied to both models.
+
+- Optimizer: SGD, momentum 0.9, weight decay 5e-4
+- LR: 0.02 (linearly scaled from the paper's 0.01 @ 128 to batch 256), cosine annealing over 60 epochs
+- Batch size: 256
+- Precision: fp16 autocast + GradScaler
+- Augmentation: RandomCrop(64, padding=4), horizontal flip, ImageNet mean/std normalization
+- Loss: cross-entropy; metrics: top-1 accuracy
+- Framework: PyTorch Lightning 2.x, torch.compile, ModelCheckpoint
+- Hardware: AMD RX 9070 XT (ROCm)
+
+## Results
+
+| Model | Best val acc | Best val loss | Best train loss |
+|---|---:|---:|---:|
+| Original | **34.07%** | 2.998 | 0.435 |
+| Adapted | **48.01%** | 2.420 | 0.155 | 
+| **Δ** | **+13.94 pp** | −0.58 | −0.28 | 
+
+Both models overfit severely. Training accuracy reaches 88% / 95% while validation
+plateaus in the high 30s / high 40s. This result is not unexpected for AlexNet applied to small datasets,
+especially considering batch normalization was not used.
+
+The Δ quantifies the cost of the original AlexNet's aggressive downsampling applied on 64×64 input. The trunk collapses to a 1x1 feature map, and AdaptiveAvgPool2d((6,6)) can only broadcast that single vector into the FC input. It cannot recover spatial information the stem already discarded. Reducing the stem stride so the trunk produces a real 6x6 map is worth ~14 pp of validation accuracy at ~3x the total MACs.
+
+This also makes future AlexNet comparisons (e.g. with ResNet) on the same dataset fair. Any gap ResNet18 shows against that is attributable to BatchNorm and residual connections, not to a crippled feature map at 64×64.
+
+## Reproducing
+
+```bash
+pip install torch torchvision lightning torchmetrics matplotlib
+jupyter notebook alexnet_tiny_imagenet.ipynb
+```
 
 ## Reference
 Krizhevsky, A., Sutskever, I., & Hinton, G. E. (2012). [ImageNet Classification with Deep Convolutional Neural Networks](NIPS-2012-imagenet-classification-with-deep-convolutional-neural-networks-Paper.pdf). *NeurIPS*.
-
