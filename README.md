@@ -6,12 +6,12 @@
 An implementation and comparison of the original AlexNet against an adapted version on Tiny ImageNet.
 
 AlexNet was designed for 224x224 input. Applied unchanged to the 64x64 of Tiny ImageNet, the conv trunk
-collapses to a 1x1 feature map before the first FC layer, so `AdaptiveAvgPool2d((6,6))`
+collapses to a 1x1 feature map before the first FC layer, so AdaptiveAvgPool2d((6,6))
 broadcasts a single 256-vector 36x into the 9216-dim FC input. Those 36 copies are
-rank-redundant: the first `Linear(9216, 4096)` matrix has rank ≤ 256 at this resolution,
+rank-redundant: the first Linear(9216, 4096) matrix has rank ≤ 256 at this resolution,
 wasting 37M of AlexNet's 60M parameters.
 
-The adaptation consists in reducing the architecture's downsampling so the trunk naturally produces the expected 6x6 feature map.
+The adaptation reduces the stem's downsampling so the trunk naturally produces the expected 6×6 feature map.
 
 ## Model differences
 
@@ -40,7 +40,6 @@ The same data-augmentation and training configuration is applied to both models.
 - Augmentation: RandomCrop(64, padding=4), horizontal flip, ImageNet mean/std normalization
 - Loss: cross-entropy; metrics: top-1 accuracy
 - Framework: PyTorch Lightning 2.x, torch.compile, ModelCheckpoint
-- Hardware: AMD RX 9070 XT (ROCm)
 
 ## Results
 
@@ -52,18 +51,15 @@ The same data-augmentation and training configuration is applied to both models.
 
 Both models overfit severely. Training accuracy reaches 88% / 95% while validation
 plateaus in the high 30s / high 40s. This result is not unexpected for AlexNet applied to small datasets,
-especially considering batch normalization was not used.
+especially since batch normalization was not used
 
-The Δ quantifies the cost of the original AlexNet's aggressive downsampling applied on 64×64 input. The trunk collapses to a 1x1 feature map, and AdaptiveAvgPool2d((6,6)) can only broadcast that single vector into the FC input. It cannot recover spatial information the stem already discarded. Reducing the stem stride so the trunk produces a real 6x6 map is worth ~14 pp of validation accuracy at ~3x the total MACs.
+The 14 points gap quantifies the cost of the original AlexNet's aggressive downsampling applied to 64×64 input. The trunk collapses to a 1x1 feature map, and AdaptiveAvgPool2d((6,6)) can only broadcast that single vector into the FC input. It cannot recover spatial information the stem already discarded. Reducing the stem stride so the trunk produces a real 6x6 map is worth ~14 pp of validation accuracy for ~3x the total MACs.
 
-This also makes future AlexNet comparisons (e.g. with ResNet) on the same dataset fair. Any gap ResNet18 shows against that is attributable to BatchNorm and residual connections, not to a crippled feature map at 64×64.
+This also makes comparisons with newer models on the same dataset fair. The performance gap ResNet18 would show can then be  attributable to BatchNorm and residual connections, not to a flawed feature map at 64x64.
 
-## Reproducing
-
-```bash
-pip install torch torchvision lightning torchmetrics matplotlib
-jupyter notebook alexnet_tiny_imagenet.ipynb
-```
+## Requirements
+Results were produced in Python 3.14, with `torch==2.14.1+rocm7.2` on AMD RX 9070 XT.
+The dataset is downloaded directly by the notebook (240 MB).
 
 ## Reference
 Krizhevsky, A., Sutskever, I., & Hinton, G. E. (2012). [ImageNet Classification with Deep Convolutional Neural Networks](NIPS-2012-imagenet-classification-with-deep-convolutional-neural-networks-Paper.pdf). *NeurIPS*.
