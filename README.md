@@ -43,6 +43,9 @@ The same data-augmentation and training configuration is applied to both models.
 
 ## Results
 
+<img width="1190" height="390" alt="image" src="https://github.com/user-attachments/assets/8b184e64-f541-454d-b3d3-8594c7bde395" />
+
+
 | Model | Best val acc | Best val loss | Best train loss |
 |---|---:|---:|---:|
 | Original | **34.07%** | 2.998 | 0.435 |
